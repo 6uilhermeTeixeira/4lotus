@@ -3,10 +3,11 @@ from __future__ import annotations
 import os
 import base64
 import hmac
+from urllib.parse import parse_qs
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.responses import HTMLResponse
 
 from .dataset import DatasetError, GoldHistory
@@ -28,19 +29,28 @@ BUNDLE_ROOT = Path(os.getenv("LOTUS_BUNDLE_ROOT", Path(__file__).resolve().paren
 app = FastAPI(title="4lotus Strategy Service")
 
 _PANEL_PASSWORD = os.getenv("LOTUS_PANEL_PASSWORD", "")
+_PANEL_COOKIE = "4lotus_panel_session"
+_PANEL_SESSION = hmac.new(b"4lotus-staging-session", _PANEL_PASSWORD.encode(), "sha256").hexdigest()
 
 @app.middleware("http")
 async def panel_auth(request: Request, call_next):
-    if _PANEL_PASSWORD and not request.url.path.startswith(("/health", "/ready", "/api/")):
-        header = request.headers.get("authorization", "")
-        try:
-            scheme, token = header.split(" ", 1)
-            supplied = base64.b64decode(token).decode().split(":", 1)[1]
-        except (ValueError, UnicodeDecodeError, IndexError):
-            scheme, supplied = "", ""
-        if scheme.lower() != "basic" or not hmac.compare_digest(supplied, _PANEL_PASSWORD):
-            return JSONResponse({"detail": "authentication required"}, status_code=401, headers={"WWW-Authenticate": "Basic"})
+    if _PANEL_PASSWORD and request.url.path not in ("/login", "/health", "/ready") and not request.url.path.startswith("/api/"):
+        if not hmac.compare_digest(request.cookies.get(_PANEL_COOKIE, ""), _PANEL_SESSION):
+            return RedirectResponse("/login", status_code=303)
     return await call_next(request)
+
+@app.get("/login", response_class=HTMLResponse, include_in_schema=False)
+def login_page() -> HTMLResponse:
+    return HTMLResponse("<main style='max-width:420px;margin:15vh auto;font:16px system-ui'><h1>4lotus</h1><p>Acesso ao painel</p><form method='post'><label>Senha<input type='password' name='password' autofocus required></label><button type='submit'>Entrar</button></form></main>")
+
+@app.post("/login", include_in_schema=False)
+async def login(request: Request):
+    body = parse_qs((await request.body()).decode())
+    if not hmac.compare_digest(body.get("password", [""])[0], _PANEL_PASSWORD):
+        return HTMLResponse("Senha invalida", status_code=401)
+    response = RedirectResponse("/", status_code=303)
+    response.set_cookie(_PANEL_COOKIE, _PANEL_SESSION, httponly=True, samesite="lax")
+    return response
 
 NAVIGATION = (
     ("history", "/", "Histórico do ouro", "database"),
