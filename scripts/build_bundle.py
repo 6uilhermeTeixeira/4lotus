@@ -36,7 +36,7 @@ def main() -> None:
         "schema_version": "1.0",
         "source_repository": "6uilhermeTeixeira/4lotus",
         "source_commit": commit,
-        "required_runner": "2lotus-runner>=0.1.0",
+        "required_runner": "3lotus-runner>=0.1.0",
         "built_at_utc": datetime.now(UTC).isoformat(),
         "files": files,
     }
@@ -49,4 +49,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
