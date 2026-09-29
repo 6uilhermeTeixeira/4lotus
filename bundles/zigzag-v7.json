@@ -1,0 +1,14 @@
+{
+  "id": "zigzag-v7",
+  "name": "ZigZag V7",
+  "version": "7.0.0",
+  "enabled": true,
+  "implementation": "builtin.zigzag-v7-shadow",
+  "parameters": {
+    "symbol": "XAUUSD",
+    "timeframe": "M5",
+    "expansion_threshold": 6.0,
+    "calendar_range_floor": 4.5
+  },
+  "sha256": "36fc5c685cace3072f386b4924554ea1b86eab3e266a72685f190b4938dd898e"
+}
