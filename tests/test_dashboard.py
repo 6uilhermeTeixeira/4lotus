@@ -1,5 +1,8 @@
+import json
+
 from fastapi.testclient import TestClient
 
+from lotus_app import main as main_module
 from lotus_app.main import app
 
 
@@ -27,13 +30,22 @@ def test_strategy_workbench_loads_frozen_baseline_without_importing_runtime() ->
     assert "A referência V1.0 é o único gatilho registrado" in client.get("/compare").text
 
 
-def test_strategy_backtest_chart_loads_five_and_seven_year_snapshots() -> None:
+def test_strategy_backtest_chart_loads_five_and_seven_year_snapshots(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(main_module, "BACKTEST_ROOT", tmp_path)
+    snapshot = {
+        "period_start_utc": "2021-01-01T00:00:00Z",
+        "period_end_utc": "2026-01-01T00:00:00Z",
+        "summary": {"trades_count": 1},
+        "daily_pnl": [{"day": "2026-01-01", "net_pnl": 12.5}],
+    }
+    for days in (1826, 2557):
+        (tmp_path / f"core-zigzag-{days}.json").write_text(json.dumps(snapshot), encoding="utf-8")
     client = TestClient(app)
     for days, label in ((1826, "5 anos"), (2557, "7 anos")):
         response = client.get(f"/api/strategies/backtest?strategy_id=trigger.g01&days={days}")
         assert response.status_code == 200
         payload = response.json()
-        assert payload["source_project"] == "2Lotus"
+        assert payload["source_project"] == "5lotus"
         assert payload["period_days"] == days
         assert payload["equity"]
         assert payload["summary"]["trades_count"] > 0

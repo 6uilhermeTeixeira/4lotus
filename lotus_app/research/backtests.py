@@ -1,4 +1,4 @@
-"""Read-only adapter for backtest snapshots produced by 2Lotus."""
+"""Read-only adapter for backtest snapshots produced by 5lotus."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ IMPORTED_BACKTESTS = {
     "trigger.g01": {
         "name": "ZigZag Scalper V1.0",
         "source_id": "core-zigzag",
-        "source_project": "2Lotus",
+        "source_project": "5lotus",
     },
 }
 SUPPORTED_PERIODS = (365, 1095, 1826, 2557)
@@ -32,7 +32,7 @@ class BacktestLibrary:
             raise BacktestError("Período de backtest não suportado.")
         path = self.root / f"{IMPORTED_BACKTESTS[strategy_id]['source_id']}-{days}.json"
         if not path.is_file():
-            raise BacktestError(f"O snapshot de {days} dias ainda não foi gerado no 2Lotus.")
+            raise BacktestError(f"O snapshot de {days} dias ainda não foi gerado no 5lotus.")
         return path
 
     def read(self, strategy_id: str, days: int) -> dict[str, object]:
