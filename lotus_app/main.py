@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import os
+import base64
+import hmac
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.responses import HTMLResponse
 
 from .dataset import DatasetError, GoldHistory
@@ -23,6 +26,21 @@ BACKTEST_ROOT = Path(
 )
 BUNDLE_ROOT = Path(os.getenv("LOTUS_BUNDLE_ROOT", Path(__file__).resolve().parents[1] / "bundles"))
 app = FastAPI(title="4lotus Strategy Service")
+
+_PANEL_PASSWORD = os.getenv("LOTUS_PANEL_PASSWORD", "")
+
+@app.middleware("http")
+async def panel_auth(request: Request, call_next):
+    if _PANEL_PASSWORD and not request.url.path.startswith(("/health", "/ready", "/api/")):
+        header = request.headers.get("authorization", "")
+        try:
+            scheme, token = header.split(" ", 1)
+            supplied = base64.b64decode(token).decode().split(":", 1)[1]
+        except (ValueError, UnicodeDecodeError, IndexError):
+            scheme, supplied = "", ""
+        if scheme.lower() != "basic" or not hmac.compare_digest(supplied, _PANEL_PASSWORD):
+            return JSONResponse({"detail": "authentication required"}, status_code=401, headers={"WWW-Authenticate": "Basic"})
+    return await call_next(request)
 
 NAVIGATION = (
     ("history", "/", "Histórico do ouro", "database"),
